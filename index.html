@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeleVideo - Video Call & Movie Sharing</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: linear-gradient(135deg, #1e3c72, #2a5298); color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+        header { background: rgba(0,0,0,0.3); padding: 1rem; text-align: center; backdrop-filter: blur(10px); }
+        header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .container { flex: 1; max-width: 1200px; margin: 2rem auto; padding: 0 1rem; display: flex; flex-direction: column; gap: 2rem; }
+        .card { background: rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .btn { background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; padding: 0.8rem 2rem; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; transition: 0.3s; margin: 0.5rem; }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6); }
+        .btn.red { background: #f44336; }
+        .btn.gray { background: #999; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .video-item { background: rgba(0,0,0,0.3); border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; }
+        .video-item video { width: 100%; height: 180px; object-fit: cover; }
+        .video-title { padding: 0.8rem; background: rgba(0,0,0,0.5); position: absolute; bottom: 0; width: 100%; text-align: center; }
+        .upload-area { border: 2px dashed #4facfe; border-radius: 12px; padding: 2rem; text-align: center; margin: 1.5rem 0; cursor: pointer; }
+        .upload-area:hover { background: rgba(79, 172, 254, 0.1); }
+        #videoCallModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; padding: 1rem; justify-content: center; align-items: center; }
+        .modal-content { max-width: 800px; width: 100%; background: #fff; border-radius: 16px; overflow: hidden; color: #000; }
+        .modal-header { padding: 1rem; background: #1e3c72; color: white; text-align: center; }
+        .modal-body { display: flex; gap: 10px; padding: 1rem; flex-wrap: wrap; justify-content: center; }
+        .modal-body video { width: 300px; height: 225px; border-radius: 12px; background: #000; }
+        .modal-footer { text-align: center; padding: 1rem; }
+        footer { text-align: center; padding: 2rem; background: rgba(0,0,0,0.3); opacity: 0.8; }
+        @media (max-width: 768px) { .modal-body video { width: 100%; } }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+    <header>
+        <h1>TeleVideo</h1>
+        <p>ဗီဒီယိုခေါ်ဆိုမှု + ရုပ်ရှင်တင်ခြင်း - VPN မလို</p>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2 style="text-align:center; margin-bottom:1rem;">အဓိက လုပ်ဆောင်ချက်များ</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; text-align: center;">
+                <div><i class="fas fa-video" style="font-size:2rem; color:#4facfe;"></i><p>HD Video Call</p></div>
+                <div><i class="fas fa-film" style="font-size:2rem; color:#4facfe;"></i><p>Movie Upload</p></div>
+                <div><i class="fas fa-users" style="font-size:2rem; color:#4facfe;"></i><p>လူများစွာ</p></div>
+                <div><i class="fas fa-shield-alt" style="font-size:2rem; color:#4facfe;"></i><p>No VPN</p></div>
+            </div>
+            <div style="text-align:center; margin-top:2rem;">
+                <button class="btn" onclick="startVideoCall()">ဗီဒီယိုခေါ်ဆိုမှု စတင်ပါ</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="text-align:center; margin-bottom:1rem;">ရုပ်ရှင်များ</h2>
+            <div class="upload-area" id="uploadArea">
+                <i class="fas fa-cloud-upload-alt" style="font-size:2.5rem; color:#4facfe;"></i>
+                <p>ဗီဒီယိုဖိုင်ကို ဆွဲထည့်ပါ သို့မဟုတ် နှိပ်၍ ရွေးပါ</p>
+                <input type="file" id="videoInput" accept="video/*" multiple style="display:none;" />
+            </div>
+            <div class="video-grid" id="videoGrid">
+                <div class="video-item">
+                    <video src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls></video>
+                    <div class="video-title">Big Buck Bunny</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Call Modal -->
+    <div id="videoCallModal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>ဗီဒီယိုခေါ်ဆိုမှု</h3></div>
+            <div class="modal-body">
+                <video id="localVideo" autoplay muted></video>
+                <video id="remoteVideo" autoplay></video>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="createRoom()">Room ဖန်တီးပါ</button>
+                <button class="btn" onclick="joinRoom()">Room ဝင်ပါ</button>
+                <button class="btn red" onclick="endCall()">ဖုန်းချပါ</button>
+                <button class="btn gray" onclick="closeModal()">ပိတ်ပါ</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 TeleVideo | VPN မလိုပါ</p>
+    </footer>
+
+    <!-- Firebase SDK (ဒီဟာ မရှိရင် အလုပ်မလုပ်ဘူး!) -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+
+    <!-- ဒီနေရာ တစ်ခါတည်း အကုန်ထည့်ပါ -->
+    <script>
+        // === Firebase Config ထည့်ပါ ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyAB8k6e9zSoLn2IZy1V1HfhCYrj40-ARfc",
+            authDomain: "televideo-call.firebaseapp.com",
+            databaseURL: "https://televideo-call-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "televideo-call",
+            storageBucket: "televideo-call.appspot.com",
+            messagingSenderId: "438272150797",
+            appId: "1:438272150797:web:c5fa89486f36fa0914f444",
+            measurementId: "G-49FLTDGVL9"
+        };
+        // ====================================
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let localStream, peerConnection;
+        const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        let roomId = '';
+
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+
+        function startVideoCall() {
+            document.getElementById('videoCallModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('videoCallModal').style.display = 'none';
+            endCall();
+        }
+
+        async function createRoom() {
+            roomId = prompt("Room နာမည် ထည့်ပါ (ဥပမာ: myroom123):");
+            if (!roomId) return;
+            await startCamera();
+            const roomRef = db.ref('rooms/' + roomId);
+            const offer = await createOffer();
+            await roomRef.set({ offer });
+            roomRef.on('value', snapshot => handleSignaling(snapshot, roomRef));
+            const link = `${window.location.href.split('?')[0]}?room=${roomId}`;
+            prompt("Link ကူးပါ:", link);
+        }
+
+        async function joinRoom() {
+            roomId = prompt("Room ID ထည့်ပါ:");
+            if (!roomId) return;
+            await startCamera();
+            const roomRef = db.ref('rooms/' + roomId);
+            const snapshot = await roomRef.once('value');
+            if (!snapshot.val()) {
+                alert("Room မတွေ့ပါ!");
+                return;
+            }
+            if (snapshot.val()?.offer) {
+                await handleOffer(snapshot.val().offer, roomRef);
+            }
+            roomRef.on('value', snapshot => handleSignaling(snapshot, roomRef));
+        }
+
+        async function startCamera() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+            } catch (err) {
+                alert("ကင်မရာ သို့မဟုတ် မိုက်ခွင့်ပြုချက် လိုအပ်ပါသည်။");
+            }
+        }
+
+        async function createOffer() {
+            peerConnection = new RTCPeerConnection(servers);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            setupPeerEvents();
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            return offer;
+        }
+
+        async function handleOffer(offer, roomRef) {
+            peerConnection = new RTCPeerConnection(servers);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            setupPeerEvents();
+            await peerConnection.setRemoteDescription(offer);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            await roomRef.update({ answer });
+        }
+
+        function setupPeerEvents() {
+            peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
+            peerConnection.onicecandidate = e => {
+                if (e.candidate) {
+                    db.ref('rooms/' + roomId + '/candidates').push({
+                        candidate: e.candidate.toJSON(),
+                        sender: 'local'
+                    });
+                }
+            };
+        }
+
+        function handleSignaling(snapshot, roomRef) {
+            const data = snapshot.val();
+            if (data?.answer && !peerConnection.currentRemoteDescription) {
+                peerConnection.setRemoteDescription(data.answer);
+            }
+            if (data?.candidates) {
+                Object.values(data.candidates).forEach(c => {
+                    if (c.sender !== 'local') {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(c.candidate)).catch(() => {});
+                    }
+                });
+            }
+        }
+
+        function endCall() {
+            if (peerConnection) peerConnection.close();
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            if (roomId) db.ref('rooms/' + roomId).remove();
+        }
+
+        // Upload Video
+        document.getElementById('uploadArea').addEventListener('click', () => {
+            document.getElementById('videoInput').click();
+        });
+        document.getElementById('videoInput').addEventListener('change', e => {
+            [...e.target.files].forEach(file => {
+                if (file.type.startsWith('video/')) {
+                    const url = URL.createObjectURL(file);
+                    const grid = document.getElementById('videoGrid');
+                    const item = document.createElement('div');
+                    item.className = 'video-item';
+                    item.innerHTML = `<video src="${url}" controls></video><div class="video-title">${file.name}</div>`;
+                    grid.appendChild(item);
+                }
+            });
+        });
+
+        // URL ကနေ room ဝင်ရင်
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('room')) {
+            roomId = urlParams.get('room');
+            startVideoCall();
+            setTimeout(() => joinRoom(), 1000);
+        }
+    </script>
+</body>
+</html>
